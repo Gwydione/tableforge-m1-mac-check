@@ -1,0 +1,44 @@
+{
+  "tableName": "Alchemist’s Shelf",
+  "dice": "d8",
+  "sets": [
+    {
+      "name": "",
+      "entries": [
+        {
+          "range": "1",
+          "text": "A flask of fire-salt (½ dose)."
+        },
+        {
+          "range": "2",
+          "text": "Twelve “will-o’-wisp” lanterns."
+        },
+        {
+          "range": "3",
+          "text": "An offering bowl × 3 — still warm."
+        },
+        {
+          "range": "4",
+          "text": "An effigy of Zoë the Bold…"
+        },
+        {
+          "range": "5",
+          "text": "The Café Noir ledger: 4 sp, 2 cp."
+        },
+        {
+          "range": "6",
+          "text": "Ætheling’s ring (−1 to saves)."
+        },
+        {
+          "range": "7",
+          "text": "A baffling map of the Fjörd."
+        },
+        {
+          "range": "8",
+          "text": "A 10 ft. pole, notched at 5 ft."
+        }
+      ]
+    }
+  ],
+  "case": "c06-special-characters"
+}

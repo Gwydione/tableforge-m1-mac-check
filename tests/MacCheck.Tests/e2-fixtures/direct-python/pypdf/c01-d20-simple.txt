@@ -1,0 +1,41 @@
+D20 ROADSIDE ENCOUNTERS
+ 1
+A pedlar with a cart of cracked pots.
+2
+Three pilgrims singing off-key.
+3
+A riderless horse, still saddled.
+4
+Bandits demand a toll of 10 gp.
+5
+A shrine with a fresh offering.
+6
+Wolves watching from the treeline.
+7
+A broken wagon blocking the road.
+8
+A herald announcing a tourney.
+9
+Two knights arguing over a bridge.
+10
+A lost child who knows a secret path.
+11
+Crows feeding on something large.
+12
+A patrol of the duke's wardens.
+13
+An old woman selling charms.
+14
+A milestone carved with a warning.
+15
+Smoke rising from a burnt farm.
+16
+A troupe of travelling players.
+17
+A tax collector and his guards.
+18
+A hermit offering to read fortunes.
+19
+A sudden, freezing fog bank.
+20
+A dragon's shadow passes overhead.

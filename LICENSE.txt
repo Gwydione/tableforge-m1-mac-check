@@ -1,0 +1,19 @@
+TableForge Mac Check (validation harness)
+Copyright (c) 2026 RPG Frequencies. All rights reserved.
+
+This repository is public so that its validation workflow can run on GitHub-hosted runners. That does not grant any
+licence: no rights to copy, modify, redistribute or sell any part of it are given, except those GitHub's Terms of Service
+grant for viewing and forking on GitHub.
+
+It contains copies of TableForge 1.0.0 source files (listed in PROVENANCE.md). TableForge is proprietary software of
+RPG Frequencies and is not open source; those copies are published here by, and with the permission of, the copyright
+holder, for this validation only, and remain under TableForge's own terms
+(https://github.com/Gwydione/TableForge/blob/v1.0.0/LICENSE.txt).
+
+Third-party components are licensed separately under their own terms; see THIRD-PARTY-NOTICES.md. Nothing in this file
+limits the rights those licences give you.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+ITS USE.

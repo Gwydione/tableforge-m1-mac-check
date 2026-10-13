@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- UI-free part of TableForge Mac Check: TableForge 1.0.0 parser/domain/dddice sources (verbatim copies, see
+       PROVENANCE.md), the E2 evaluator, E3 editing session, E4 page/bridge pieces, and the results/privacy code. -->
+  <PropertyGroup>
+    <RootNamespace>MacCheck.Core</RootNamespace>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Only so the verbatim DddiceAccountStore.cs compiles; Mac Check never constructs it (guest-only dddice). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="TableForge\Assets\dddice-host.html" LogicalName="dddice-host.v1.0.0.html" />
+    <None Remove="FromE2\*.txt" />
+  </ItemGroup>
+</Project>

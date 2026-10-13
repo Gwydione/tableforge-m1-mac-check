@@ -1,0 +1,9 @@
+D8 DIFFICULTY MODIFIER
+
+1     Child’s play       +30
+2–3   Easy               +20
+4–5   Normal              +0
+6     Hard               −10
+7     Very hard          −20
+8     Heroic             −30
+

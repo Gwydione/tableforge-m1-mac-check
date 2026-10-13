@@ -1,0 +1,60 @@
+{
+  "tableName": "Strange Omens",
+  "dice": "d12",
+  "sets": [
+    {
+      "name": "",
+      "entries": [
+        {
+          "range": "1",
+          "text": "Every candle in the village gutters out at once, though there is no wind."
+        },
+        {
+          "range": "2",
+          "text": "A white stag crosses the road and stops to stare at the party before vanishing."
+        },
+        {
+          "range": "3",
+          "text": "The church bell rings by itself at midnight."
+        },
+        {
+          "range": "4",
+          "text": "Birds fall silent for an hour; when they sing again, it is a song nobody recognises, and the oldest villager weeps to hear it."
+        },
+        {
+          "range": "5",
+          "text": "Milk sours in every pail overnight."
+        },
+        {
+          "range": "6",
+          "text": "A stranger arrives asking for a person who died here long ago, and describes them perfectly."
+        },
+        {
+          "range": "7",
+          "text": "Frost forms in the shape of a hand on the inn's door."
+        },
+        {
+          "range": "8",
+          "text": "The river runs backwards until dawn."
+        },
+        {
+          "range": "9",
+          "text": "Every dog in town turns to face the north and will not be called away."
+        },
+        {
+          "range": "10",
+          "text": "A child draws a map of a place she has never seen, and it is accurate."
+        },
+        {
+          "range": "11",
+          "text": "Moths gather on the party's packs and cannot be shaken off."
+        },
+        {
+          "range": "12",
+          "text": "The moon rises red, and the well water tastes of iron."
+        }
+      ]
+    }
+  ],
+  "case": "c03-wrapped-text"
+}

@@ -1,0 +1,156 @@
+{
+  "tableName": "Shipwreck Finds",
+  "dice": "d66",
+  "sets": [
+    {
+      "name": "",
+      "entries": [
+        {
+          "range": "11",
+          "text": "Barrel of salt pork"
+        },
+        {
+          "range": "12",
+          "text": "Ship's bell, cracked"
+        },
+        {
+          "range": "13",
+          "text": "Bolt of red silk"
+        },
+        {
+          "range": "14",
+          "text": "Sea chest, locked"
+        },
+        {
+          "range": "15",
+          "text": "Drowned parrot"
+        },
+        {
+          "range": "16",
+          "text": "Coil of rope"
+        },
+        {
+          "range": "21",
+          "text": "Lantern, still lit"
+        },
+        {
+          "range": "22",
+          "text": "Brass sextant"
+        },
+        {
+          "range": "23",
+          "text": "Crate of oranges"
+        },
+        {
+          "range": "24",
+          "text": "Captain's log"
+        },
+        {
+          "range": "25",
+          "text": "Iron cannonball"
+        },
+        {
+          "range": "26",
+          "text": "Box of candles"
+        },
+        {
+          "range": "31",
+          "text": "Carved figurehead"
+        },
+        {
+          "range": "32",
+          "text": "Bundle of letters"
+        },
+        {
+          "range": "33",
+          "text": "Spare sail"
+        },
+        {
+          "range": "34",
+          "text": "Keg of rum"
+        },
+        {
+          "range": "35",
+          "text": "Silver spoon"
+        },
+        {
+          "range": "36",
+          "text": "Rusted cutlass"
+        },
+        {
+          "range": "41",
+          "text": "Jar of pickled eels"
+        },
+        {
+          "range": "42",
+          "text": "Wooden leg"
+        },
+        {
+          "range": "43",
+          "text": "Bag of nails"
+        },
+        {
+          "range": "44",
+          "text": "Sealed bottle"
+        },
+        {
+          "range": "45",
+          "text": "Torn flag"
+        },
+        {
+          "range": "46",
+          "text": "Tin of biscuits"
+        },
+        {
+          "range": "51",
+          "text": "Fishing net"
+        },
+        {
+          "range": "52",
+          "text": "Small anchor"
+        },
+        {
+          "range": "53",
+          "text": "Oilskin coat"
+        },
+        {
+          "range": "54",
+          "text": "Chart of the reef"
+        },
+        {
+          "range": "55",
+          "text": "Bosun's whistle"
+        },
+        {
+          "range": "56",
+          "text": "Hammock"
+        },
+        {
+          "range": "61",
+          "text": "Lucky coin"
+        },
+        {
+          "range": "62",
+          "text": "Wax-sealed scroll"
+        },
+        {
+          "range": "63",
+          "text": "Ship's cat, alive"
+        },
+        {
+          "range": "64",
+          "text": "Spyglass"
+        },
+        {
+          "range": "65",
+          "text": "Bucket of tar"
+        },
+        {
+          "range": "66",
+          "text": "Mermaid's comb"
+        }
+      ]
+    }
+  ],
+  "case": "c05-d66-two-columns"
+}

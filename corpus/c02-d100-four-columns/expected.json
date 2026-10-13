@@ -1,0 +1,92 @@
+{
+  "tableName": "Village Names",
+  "dice": "d100",
+  "sets": [
+    {
+      "name": "",
+      "entries": [
+        {
+          "range": "01-05",
+          "text": "Ashby Ford"
+        },
+        {
+          "range": "06-10",
+          "text": "Brackenmoor"
+        },
+        {
+          "range": "11-15",
+          "text": "Cold Harbour"
+        },
+        {
+          "range": "16-20",
+          "text": "Dunwick"
+        },
+        {
+          "range": "21-25",
+          "text": "Elder Cross"
+        },
+        {
+          "range": "26-30",
+          "text": "Fallowmere"
+        },
+        {
+          "range": "31-35",
+          "text": "Greystone"
+        },
+        {
+          "range": "36-40",
+          "text": "Hollins End"
+        },
+        {
+          "range": "41-45",
+          "text": "Ivyreach"
+        },
+        {
+          "range": "46-50",
+          "text": "Juniper Hill"
+        },
+        {
+          "range": "51-55",
+          "text": "Kestrel Bay"
+        },
+        {
+          "range": "56-60",
+          "text": "Long Sutton"
+        },
+        {
+          "range": "61-65",
+          "text": "Marrowdale"
+        },
+        {
+          "range": "66-70",
+          "text": "Nettlebed"
+        },
+        {
+          "range": "71-75",
+          "text": "Oakhanger"
+        },
+        {
+          "range": "76-80",
+          "text": "Pike's Rest"
+        },
+        {
+          "range": "81-85",
+          "text": "Quarry Mill"
+        },
+        {
+          "range": "86-90",
+          "text": "Ravensholt"
+        },
+        {
+          "range": "91-95",
+          "text": "Saltmarsh"
+        },
+        {
+          "range": "96-00",
+          "text": "Thornbury"
+        }
+      ]
+    }
+  ],
+  "case": "c02-d100-four-columns"
+}

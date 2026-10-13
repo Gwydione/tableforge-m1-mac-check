@@ -1,0 +1,92 @@
+{
+  "tableName": "Roadside Encounters",
+  "dice": "d20",
+  "sets": [
+    {
+      "name": "",
+      "entries": [
+        {
+          "range": "1",
+          "text": "A pedlar with a cart of cracked pots."
+        },
+        {
+          "range": "2",
+          "text": "Three pilgrims singing off-key."
+        },
+        {
+          "range": "3",
+          "text": "A riderless horse, still saddled."
+        },
+        {
+          "range": "4",
+          "text": "Bandits demand a toll of 10 gp."
+        },
+        {
+          "range": "5",
+          "text": "A shrine with a fresh offering."
+        },
+        {
+          "range": "6",
+          "text": "Wolves watching from the treeline."
+        },
+        {
+          "range": "7",
+          "text": "A broken wagon blocking the road."
+        },
+        {
+          "range": "8",
+          "text": "A herald announcing a tourney."
+        },
+        {
+          "range": "9",
+          "text": "Two knights arguing over a bridge."
+        },
+        {
+          "range": "10",
+          "text": "A lost child who knows a secret path."
+        },
+        {
+          "range": "11",
+          "text": "Crows feeding on something large."
+        },
+        {
+          "range": "12",
+          "text": "A patrol of the duke's wardens."
+        },
+        {
+          "range": "13",
+          "text": "An old woman selling charms."
+        },
+        {
+          "range": "14",
+          "text": "A milestone carved with a warning."
+        },
+        {
+          "range": "15",
+          "text": "Smoke rising from a burnt farm."
+        },
+        {
+          "range": "16",
+          "text": "A troupe of travelling players."
+        },
+        {
+          "range": "17",
+          "text": "A tax collector and his guards."
+        },
+        {
+          "range": "18",
+          "text": "A hermit offering to read fortunes."
+        },
+        {
+          "range": "19",
+          "text": "A sudden, freezing fog bank."
+        },
+        {
+          "range": "20",
+          "text": "A dragon's shadow passes overhead."
+        }
+      ]
+    }
+  ],
+  "case": "c01-d20-simple"
+}

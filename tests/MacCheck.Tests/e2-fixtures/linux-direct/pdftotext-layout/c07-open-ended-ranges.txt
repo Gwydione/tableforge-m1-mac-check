@@ -1,0 +1,10 @@
+D20 MORALE OUTCOME
+
+−4 or less   Rout: the band flees and scatters.
+−3–0         Retreat in disorder, dropping loot.
+1–6          Fall back to the nearest cover.
+7–12         Hold position, shaken.
+13–19        Stand firm.
+20–24        Press the attack.
+25+          Fight to the last.
+

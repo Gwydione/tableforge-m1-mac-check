@@ -1,0 +1,52 @@
+{
+  "tableName": "Curious Trinkets",
+  "dice": "d10",
+  "sets": [
+    {
+      "name": "",
+      "entries": [
+        {
+          "range": "1",
+          "text": "A heavy and rather magnificent brass key that fits no lock."
+        },
+        {
+          "range": "2",
+          "text": "A sharpened, polished half-orc's tooth on a silver chain."
+        },
+        {
+          "range": "3",
+          "text": "A rolled-up and quite extraordinary map, drawn in squid ink."
+        },
+        {
+          "range": "4",
+          "text": "A music box that plays a lullaby backwards."
+        },
+        {
+          "range": "5",
+          "text": "A glass eye, slightly warm."
+        },
+        {
+          "range": "6",
+          "text": "A well-made dagger, blunt edge."
+        },
+        {
+          "range": "7",
+          "text": "A letter of introduction to someone who does not exist."
+        },
+        {
+          "range": "8",
+          "text": "A copper coin stamped on both sides with the same face."
+        },
+        {
+          "range": "9",
+          "text": "A tiny wicker cage holding a sleeping cricket."
+        },
+        {
+          "range": "10",
+          "text": "A deck of cards that is missing all the queens."
+        }
+      ]
+    }
+  ],
+  "case": "c04-hyphenation"
+}

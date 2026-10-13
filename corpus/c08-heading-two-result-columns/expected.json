@@ -1,0 +1,65 @@
+{
+  "tableName": "Difficulty Modifier",
+  "dice": "d8",
+  "sets": [
+    {
+      "name": "Difficulty",
+      "entries": [
+        {
+          "range": "1",
+          "text": "Child’s play"
+        },
+        {
+          "range": "2-3",
+          "text": "Easy"
+        },
+        {
+          "range": "4-5",
+          "text": "Normal"
+        },
+        {
+          "range": "6",
+          "text": "Hard"
+        },
+        {
+          "range": "7",
+          "text": "Very hard"
+        },
+        {
+          "range": "8",
+          "text": "Heroic"
+        }
+      ]
+    },
+    {
+      "name": "Modifier",
+      "entries": [
+        {
+          "range": "1",
+          "text": "+30"
+        },
+        {
+          "range": "2-3",
+          "text": "+20"
+        },
+        {
+          "range": "4-5",
+          "text": "+0"
+        },
+        {
+          "range": "6",
+          "text": "−10"
+        },
+        {
+          "range": "7",
+          "text": "−20"
+        },
+        {
+          "range": "8",
+          "text": "−30"
+        }
+      ]
+    }
+  ],
+  "case": "c08-heading-two-result-columns"
+}

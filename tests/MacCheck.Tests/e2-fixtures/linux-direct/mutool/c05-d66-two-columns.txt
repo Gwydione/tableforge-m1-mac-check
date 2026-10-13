@@ -1,0 +1,77 @@
+D66 SHIPWRECK FINDS
+
+11
+Barrel of salt pork
+12
+Ship's bell, cracked
+13
+Bolt of red silk
+14
+Sea chest, locked
+15
+Drowned parrot
+16
+Coil of rope
+21
+Lantern, still lit
+22
+Brass sextant
+23
+Crate of oranges
+24
+Captain's log
+25
+Iron cannonball
+26
+Box of candles
+31
+Carved figurehead
+32
+Bundle of letters
+33
+Spare sail
+34
+Keg of rum
+35
+Silver spoon
+36
+Rusted cutlass
+
+41
+Jar of pickled eels
+42
+Wooden leg
+43
+Bag of nails
+44
+Sealed bottle
+45
+Torn flag
+46
+Tin of biscuits
+51
+Fishing net
+52
+Small anchor
+53
+Oilskin coat
+54
+Chart of the reef
+55
+Bosun's whistle
+56
+Hammock
+61
+Lucky coin
+62
+Wax-sealed scroll
+63
+Ship's cat, alive
+64
+Spyglass
+65
+Bucket of tar
+66
+Mermaid's comb
+
+

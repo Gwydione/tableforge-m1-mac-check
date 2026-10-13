@@ -1,0 +1,204 @@
+# TableForge Mac Check — macOS runner trial (validation harness, not a TableForge release).
+# Manual only. Standard GitHub-hosted runners only (free for public repositories; no larger runners). No secrets.
+#
+# Job 1 (windows-2025) builds the two macOS packages exactly as the Windows development machine does, so the Mac jobs
+# can test "the original Windows-built package". Jobs 2a/2b run on Apple Silicon (macos-15, M1) and Intel
+# (macos-15-intel) and record, separately:
+#   - the automated test suite on macOS;
+#   - the Windows-built package: architecture, permissions, signatures, Gatekeeper assessment of a quarantined copy,
+#     and a LaunchServices launch (self-test) of a never-quarantined copy;
+#   - a package rebuilt on the Mac and sealed ad hoc with Apple's codesign: the same checks;
+#   - optionally, Preview -> pasteboard captures of the 8 synthetic test PDFs (kept only if they contain the table title).
+# Quarantine is only ever ADDED to copies that are assessed (simulating a browser download); it is never removed, and
+# Gatekeeper is never disabled. A launch on a CI runner does not show what a person who downloaded the app would see.
+name: mac-check-trial
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: mac-check-trial
+  cancel-in-progress: false
+env:
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  BUILD_ID: trial-${{ github.run_number }}-${{ github.sha }}
+
+jobs:
+  windows-package:
+    name: Windows-built packages (windows-2025)
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Tests on Windows
+        run: dotnet test tests/MacCheck.Tests --logger "trx;LogFileName=$PWD/out/tests-windows.trx"
+      - name: Publish and bundle both macOS architectures (as on the development machine)
+        run: |
+          python -m pip install --quiet "pillow==12.3.0"
+          mkdir -p out/packages
+          for rid in osx-arm64 osx-x64; do
+            dotnet publish src/MacCheck.App -c Release -r $rid --self-contained -p:MacCheckBuildId=$BUILD_ID -o build/$rid/publish -nologo -v q
+            python packaging/macpack.py bundle --publish build/$rid/publish --rid $rid --version 0.1.0 --build-id "$BUILD_ID" --icon packaging/icon-source.png --out build/$rid/app
+            python packaging/macpack.py verify --app "build/$rid/app/TableForge Mac Check.app" --rid $rid > out/packages/verify-windows-built-$rid.json
+            mkdir -p "build/$rid/stage/TableForge Mac Check"
+            cp -R "build/$rid/app/TableForge Mac Check.app" "build/$rid/stage/TableForge Mac Check/"
+            python packaging/macpack.py zip --root "build/$rid/stage/TableForge Mac Check" --out out/packages/windows-built-$rid.zip
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: windows-built-packages
+          path: out/
+          retention-days: 1
+
+  macos:
+    name: macOS ${{ matrix.label }} (${{ matrix.runner }})
+    needs: windows-package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15          # Apple Silicon (M1), standard runner
+            label: Apple Silicon
+            rid: osx-arm64
+            arch: arm64
+          - runner: macos-15-intel    # Intel x64, standard runner
+            label: Intel
+            rid: osx-x64
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Runner facts
+        run: |
+          mkdir -p out
+          { echo "runner_label=${{ matrix.runner }}"; sw_vers; echo "uname_m=$(uname -m)"; echo "rosetta_translated=$(sysctl -n sysctl.proc_translated 2>/dev/null || echo n/a)"; system_profiler SPHardwareDataType | grep -E "Chip|Processor Name|Memory|Model Identifier" || true; } > out/runner-facts.txt
+          cat out/runner-facts.txt
+
+      - name: Automated tests on macOS
+        continue-on-error: true
+        run: dotnet test tests/MacCheck.Tests --logger "trx;LogFileName=$PWD/out/tests-macos.trx" | tee out/tests-macos.log
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: windows-built-packages
+          path: wb
+      - name: Windows-built package — structure, permissions, signatures, Gatekeeper assessment
+        run: |
+          set +e
+          D=out/windows-built; mkdir -p $D
+          ditto -x -k wb/packages/windows-built-${{ matrix.rid }}.zip wb/x
+          APP="wb/x/TableForge Mac Check/TableForge Mac Check.app"
+          ls -l@ "$APP/Contents/MacOS/TableForgeMacCheck" > $D/permissions.txt 2>&1
+          lipo -archs "$APP/Contents/MacOS/TableForgeMacCheck" > $D/archs.txt 2>&1
+          file "$APP/Contents/MacOS/TableForgeMacCheck" >> $D/archs.txt 2>&1
+          python3 packaging/macpack.py verify --app "$APP" --rid ${{ matrix.rid }} > $D/verify.json
+          codesign -dv --verbose=4 "$APP/Contents/MacOS/TableForgeMacCheck" > $D/codesign-main.txt 2>&1
+          codesign --verify --deep --strict --verbose=4 "$APP" > $D/codesign-verify-bundle.txt 2>&1; echo "exit $?" >> $D/codesign-verify-bundle.txt
+          spctl --assess --type execute --verbose=4 "$APP" > $D/spctl-not-quarantined.txt 2>&1; echo "exit $?" >> $D/spctl-not-quarantined.txt
+          cp -R "$APP" wb/quarantined.app
+          xattr -w com.apple.quarantine "0081;$(printf %x $(date +%s));Safari;" wb/quarantined.app
+          xattr -l wb/quarantined.app > $D/quarantine-attribute.txt 2>&1
+          spctl --assess --type execute --verbose=4 wb/quarantined.app > $D/spctl-quarantined.txt 2>&1; echo "exit $?" >> $D/spctl-quarantined.txt
+          syspolicy_check distribution wb/quarantined.app > $D/syspolicy-check.txt 2>&1; echo "exit $?" >> $D/syspolicy-check.txt
+          true
+
+      - name: Windows-built package — launch through LaunchServices (never-quarantined copy) and self-test
+        timeout-minutes: 8
+        run: |
+          set +e
+          APP="$PWD/wb/x/TableForge Mac Check/TableForge Mac Check.app"
+          OUT="$PWD/out/windows-built/selftest"
+          open -n -W "$APP" --args --selftest "$OUT" --fixtures "$PWD/tests/MacCheck.Tests/e2-fixtures/windows/chrome" &
+          OPEN_PID=$!
+          for i in $(seq 1 360); do kill -0 $OPEN_PID 2>/dev/null || break; sleep 1; done
+          if kill -0 $OPEN_PID 2>/dev/null; then echo "self-test still running after 360 s" > out/windows-built/selftest-timeout.txt; pkill -f TableForgeMacCheck; fi
+          wait $OPEN_PID; echo "open exit $?" > out/windows-built/launch.txt
+          sleep 5
+          ps -axo pid,ppid,comm | grep -i -E "TableForgeMacCheck|WebContent|com.apple.WebKit" | grep -v grep > out/windows-built/processes-after-exit.txt
+          ls -l "$OUT" >> out/windows-built/launch.txt 2>&1
+          true
+
+      - name: macOS-built package — publish, bundle, ad-hoc seal with Apple codesign, checks
+        run: |
+          set +e
+          D=out/macos-built; mkdir -p $D
+          python3 -m pip install --quiet --break-system-packages "pillow==12.3.0" || python3 -m pip install --quiet "pillow==12.3.0"
+          dotnet publish src/MacCheck.App -c Release -r ${{ matrix.rid }} --self-contained -p:MacCheckBuildId=$BUILD_ID-mac -o build/publish -nologo -v q > $D/publish.log 2>&1
+          python3 packaging/macpack.py bundle --publish build/publish --rid ${{ matrix.rid }} --version 0.1.0 --build-id "$BUILD_ID-mac" --icon packaging/icon-source.png --out build/app
+          APP="$PWD/build/app/TableForge Mac Check.app"
+          codesign --force --deep --sign - "$APP" > $D/codesign-sign.txt 2>&1; echo "exit $?" >> $D/codesign-sign.txt
+          codesign -dv --verbose=4 "$APP" > $D/codesign-bundle.txt 2>&1
+          codesign --verify --deep --strict --verbose=4 "$APP" > $D/codesign-verify-bundle.txt 2>&1; echo "exit $?" >> $D/codesign-verify-bundle.txt
+          python3 packaging/macpack.py verify --app "$APP" --rid ${{ matrix.rid }} > $D/verify.json
+          cp -R "$APP" build/quarantined.app
+          xattr -w com.apple.quarantine "0081;$(printf %x $(date +%s));Safari;" build/quarantined.app
+          spctl --assess --type execute --verbose=4 build/quarantined.app > $D/spctl-quarantined.txt 2>&1; echo "exit $?" >> $D/spctl-quarantined.txt
+          true
+
+      - name: macOS-built package — launch through LaunchServices and self-test
+        timeout-minutes: 8
+        run: |
+          set +e
+          APP="$PWD/build/app/TableForge Mac Check.app"
+          OUT="$PWD/out/macos-built/selftest"
+          open -n -W "$APP" --args --selftest "$OUT" --fixtures "$PWD/tests/MacCheck.Tests/e2-fixtures/windows/chrome" &
+          OPEN_PID=$!
+          for i in $(seq 1 360); do kill -0 $OPEN_PID 2>/dev/null || break; sleep 1; done
+          if kill -0 $OPEN_PID 2>/dev/null; then echo "self-test still running after 360 s" > out/macos-built/selftest-timeout.txt; pkill -f TableForgeMacCheck; fi
+          wait $OPEN_PID; echo "open exit $?" > out/macos-built/launch.txt
+          sleep 5
+          ps -axo pid,ppid,comm | grep -i -E "TableForgeMacCheck|WebContent|com.apple.WebKit" | grep -v grep > out/macos-built/processes-after-exit.txt
+          true
+
+      - name: Optional — Preview to pasteboard capture of the synthetic PDFs (needs Accessibility; may be unavailable)
+        continue-on-error: true
+        timeout-minutes: 4
+        run: |
+          set +e
+          mkdir -p out/preview-captures
+          # id|title pairs (bash 3.2 compatible: no associative arrays)
+          while IFS='|' read -r id title; do
+            [ -z "$id" ] && continue
+            open -a Preview "corpus/$id/$id.pdf"; sleep 4
+            osascript -e 'tell application "Preview" to activate' -e 'delay 1' -e 'tell application "System Events" to keystroke "a" using command down' -e 'tell application "System Events" to keystroke "c" using command down' > "out/preview-captures/$id.osascript.txt" 2>&1
+            sleep 1
+            T="$(pbpaste)"
+            # Privacy guard as in the app: keep only text that is this test table.
+            if printf '%s' "$T" | grep -qiF "$title"; then printf '%s' "$T" > "out/preview-captures/$id.txt"; else echo "not captured (pasteboard did not contain the test table)" > "out/preview-captures/$id.rejected.txt"; fi
+            osascript -e 'tell application "Preview" to quit' > /dev/null 2>&1
+            sleep 1
+          done <<'CASES'
+          c01-d20-simple|Roadside Encounters
+          c02-d100-four-columns|Village Names
+          c05-d66-two-columns|Shipwreck Finds
+          c07-open-ended-ranges|Morale Outcome
+          c08-heading-two-result-columns|Difficulty Modifier
+          c03-wrapped-text|Strange Omens
+          c04-hyphenation|Curious Trinkets
+          c06-special-characters|Shelf
+          CASES
+          sw_vers -productVersion > out/preview-captures/macos-version.txt
+          true
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: mac-check-${{ matrix.rid }}
+          path: out/
+          retention-days: 7

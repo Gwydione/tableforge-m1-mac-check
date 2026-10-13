@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Developer tool: re-evaluates a returned results zip or Safari backup JSON with TableForge 1.0.0's parser (E2 rules)
+       and shows each case beside E2's per-reader baselines. Never part of the tester package. -->
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\MacCheck.Core\MacCheck.Core.csproj" /></ItemGroup>
+</Project>

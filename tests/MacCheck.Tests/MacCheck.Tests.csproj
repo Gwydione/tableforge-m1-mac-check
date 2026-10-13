@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MacCheck.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Skia" Version="$(AvaloniaVersion)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MacCheck.App\MacCheck.App.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="e2-fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\PROVENANCE.md" Link="PROVENANCE.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\MacCheck.Core\TableForge\**" LinkBase="tf-copies" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

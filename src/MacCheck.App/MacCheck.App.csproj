@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>MacCheck.App</RootNamespace>
+    <AssemblyName>TableForgeMacCheck</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Not trimmed or single-file: the most conventional self-contained layout, so the .app bundle is easy to audit. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Controls.WebView" Version="$(AvaloniaWebViewVersion)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MacCheck.Core\MacCheck.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The PDF corpus travels with the app (in the .app it is moved to Contents/Resources/corpus by the packager). -->
+    <None Include="..\..\corpus\**\*.pdf;..\..\corpus\**\expected.json" LinkBase="corpus" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,4 @@
+{
+  "label": "edge 155.0.4283.45 PDF viewer -> clipboard -> WPF TextBox.Paste() (TableForge's paste path)",
+  "method": "paste received by a WPF TextBox"
+}

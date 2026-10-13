@@ -1,0 +1,41 @@
+{
+  "tableName": "Morale Outcome",
+  "dice": "d20",
+  "sets": [
+    {
+      "name": "",
+      "entries": [
+        {
+          "range": "-4 or less",
+          "text": "Rout: the band flees and scatters."
+        },
+        {
+          "range": "-3-0",
+          "text": "Retreat in disorder, dropping loot."
+        },
+        {
+          "range": "1-6",
+          "text": "Fall back to the nearest cover."
+        },
+        {
+          "range": "7-12",
+          "text": "Hold position, shaken."
+        },
+        {
+          "range": "13-19",
+          "text": "Stand firm."
+        },
+        {
+          "range": "20-24",
+          "text": "Press the attack."
+        },
+        {
+          "range": "25+",
+          "text": "Fight to the last."
+        }
+      ]
+    }
+  ],
+  "rangeCompare": "normalized",
+  "case": "c07-open-ended-ranges"
+}
