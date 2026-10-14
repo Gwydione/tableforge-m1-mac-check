@@ -59,8 +59,17 @@ public sealed class AvaloniaWebViewDddiceRoller : IDddiceRoomRoller, IDisposable
         _configure = configure;
         _sessions = new DddiceSessionSource(rest); // guest only: E4 never reads or stores an account
         _log = log;
-        _server = new LoopbackPageServer(HostPage.ForAvalonia(), log.Write);
+        _server = new LoopbackPageServer(HostPage.ForAvalonia(DevSimulateLateBridge && !OperatingSystem.IsMacOS()), log.Write);
     }
+
+    /// <summary>
+    /// DEVELOPMENT ONLY (Windows/Linux self-test): serve the page with the bridge hidden until its load event, which is the
+    /// order WKWebView uses on macOS (see <see cref="MacCheck.Core.BridgeCheck"/>). Ignored on macOS.
+    /// </summary>
+    public static bool DevSimulateLateBridge { get; set; }
+
+    /// <summary>The last answer of the bridge check (bounded page facts), for the results.</summary>
+    public MacCheck.Core.BridgeCheck.Facts? LastBridgeFacts { get; private set; }
 
     public Uri PageUri => _server.PageUri;
 
@@ -131,6 +140,7 @@ public sealed class AvaloniaWebViewDddiceRoller : IDddiceRoomRoller, IDisposable
                 var ours = e.Request is { } uri && uri.GetLeftPart(UriPartial.Path) == _server.PageUri.GetLeftPart(UriPartial.Path);
                 _log.Write($"browser: navigation completed success={e.IsSuccess} {(ours ? "<dice page>" : Safe(e.Request))}");
                 if (!e.IsSuccess) _pageLoaded?.TrySetException(new DddiceException("The dddice dice page could not be loaded."));
+                else if (ours && _pageLoaded is { } loading) _ = CheckBridgeAsync(view, loading);
                 // Defence in depth: if the engine let a cancelled navigation through anyway (seen with the WebKitGTK
                 // adapter), the dice page is gone and a foreign page now has the bridge. Stop trusting the page at once.
                 if (e.Request is not null && !ours && e.Request.Scheme != "about") OnEscapedNavigation(e.Request);
@@ -155,6 +165,37 @@ public sealed class AvaloniaWebViewDddiceRoller : IDddiceRoomRoller, IDisposable
         await view.InvokeScript(
             $"window.tf.init({JsonSerializer.Serialize(session.Token)}, {JsonSerializer.Serialize(session.Room)}, {JsonSerializer.Serialize(session.Theme)})");
         await _pageReady.Task.WaitAsync(ct);
+    }
+
+    /// <summary>
+    /// M1 correction (macOS): WKWebView gets <c>invokeCSharpAction</c> only after the page has loaded, so the page's own
+    /// <c>pageLoaded</c> (sent while loading) is lost there. After the dice page's NavigationCompleted, ask the page what it
+    /// has; if the bridge and <c>window.tf</c> exist and <c>pageLoaded</c> has not arrived, have the page send it through
+    /// the bridge. <see cref="LoadPageAsync"/> still waits for the message itself, so delivery is proven. Bounded: 10 probes
+    /// 200 ms apart. On WebView2/WebKitGTK the page's own message normally arrives first and nothing is replayed.
+    /// </summary>
+    private async Task CheckBridgeAsync(NativeWebView view, TaskCompletionSource loading)
+    {
+        try
+        {
+            for (var attempt = 0; attempt < 10; attempt++)
+            {
+                if (!ReferenceEquals(view, _view) || !ReferenceEquals(loading, _pageLoaded)) return;
+                var facts = MacCheck.Core.BridgeCheck.Parse(await view.InvokeScript(MacCheck.Core.BridgeCheck.ProbeScript));
+                LastBridgeFacts = facts;
+                if (attempt == 0 || facts?.BridgeReady == true) _log.Write($"bridge check: {facts?.ToString() ?? "no answer from the page"}");
+                if (loading.Task.IsCompleted) return;
+                if (MacCheck.Core.BridgeCheck.ShouldReplay(facts, pageLoadedReceived: false))
+                {
+                    _log.Write("bridge check: pageLoaded was not received; asking the page to send it through the bridge");
+                    await view.InvokeScript(MacCheck.Core.BridgeCheck.ReplayScript);
+                    return;
+                }
+                await Task.Delay(200);
+            }
+            _log.Write("bridge check: the bridge did not become available after the page loaded");
+        }
+        catch (Exception ex) { _log.Write($"bridge check failed: {ex.GetType().Name}: {ex.Message.Split('\n')[0]}"); }
     }
 
     public async Task<IReadOnlyList<DddiceFace>> RollAsync(IReadOnlyList<string> diceTypes, CancellationToken cancellationToken)

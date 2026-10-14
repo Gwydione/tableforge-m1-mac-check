@@ -25,7 +25,7 @@ Analyse both with `tools/MacCheck.Analyze`.
 | `consent` | `testsAgreed`, `systemInfoAgreed`, `modelAgreed`, `saveAgreed` |
 | `system` | Only if consented. `os`, `osVersion` (`kern.osproductversion`), `osBuild`, `processArchitecture`, `osArchitecture`, `runningUnderRosetta`, `.net`, and `modelIdentifier` only with its own consent. Never names, serials, UUIDs, IP addresses or paths. |
 | `overall` | `PASS` / `FAIL` / `UNABLE_TO_TEST` / `INCONCLUSIVE`: the worst of E2 (mandatory PDFs), E4 and E3. E1 is optional and not counted. |
-| `e2[]` | Per PDF. Fields: `case`, `mandatory`, `outcome`, `rawVerdict` (E2's PASS / TEXT-DIFF / FAIL-flagged / FAIL-silent on the text **exactly as pasted**), `cleanupVerdicts` (review-cleanup, paste-cleanup; reported separately, never used for the outcome), `expectedRows`, `parsedRows`, `rowsMatched`, `mismatches[]`, `parserIssues[]`, `characters` (line endings, tabs, non-ASCII inventory), `pasteMethod`, `contentRejected`, `seconds`, `captureFile`, `sameVerdictAsE2Readers[]` |
+| `e2[]` | Per PDF. Fields: `case`, `mandatory`, `outcome`, `rawVerdict` (E2's PASS / TEXT-DIFF / FAIL-flagged / FAIL-silent on the text **exactly as pasted**), `cleanupVerdicts` (review-cleanup, paste-cleanup; reported separately, never used for the outcome), `expectedRows`, `parsedRows`, `rowsMatched`, `mismatches[]`, `parserIssues[]`, `characters` (line endings, tabs, non-ASCII inventory), `pasteMethod`, `contentRejected`, `seconds`, `captureFile`, `sameVerdictAsE2Readers[]`, `rows` (coverage and order of the raw parse: `expected`, `found`, `missing`, `extra`, `outOfOrder` — rows off the longest run in the expected order — `textDifferences`, `warned`, `coverage`, `order`, and `silent` when rows were reordered, lost or added **without** a parser warning) |
 | `e2Summary`, `e4`, `e3`, `e1` | Sections. Fields: `outcome`, `note`, `checks[]`. Each check has `id`, `title`, `outcome`, `automaticPass`, `testerAnswer` (`yes`/`no`/`not_sure`/`not_asked`), `detail`, `seconds`. |
 | `questions` | Free-standing tester answers, for example whether macOS asked to allow pasting |
 | `events` | Consent, choices, resumption after an unexpected exit |
@@ -36,8 +36,8 @@ Analyse both with `tools/MacCheck.Analyze`.
 |---|---|
 | **PASS** | Every automatic check passed and every tester confirmation was "Yes" |
 | **FAIL** | An automatic check failed, or the tester answered "No" |
-| **UNABLE_TO_TEST** | Skipped or blocked (no evidence either way) |
-| **INCONCLUSIVE** | Ran, but incomplete or contradictory: tester "Not sure", text that wasn't the test table, TEXT-DIFF |
+| **UNABLE_TO_TEST** | Skipped or blocked (no evidence either way). Also every check that only a person can confirm (for example "the dice tumbled") when nobody answered — an automated self-test — or when there was nothing to see (no dice were shown) |
+| **INCONCLUSIVE** | Ran, but incomplete or contradictory: tester "Not sure", text that wasn't the test table, TEXT-DIFF, a dice shutdown with no helper processes to observe (macOS) |
 
 A section takes the worst of its items. An E2 `FAIL` that matches the E2 browser-engine baselines (for example c02) is a
 known parser limitation, not a macOS problem. See `EXPECTED-RESULTS.md`.

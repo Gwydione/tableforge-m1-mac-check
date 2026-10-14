@@ -34,6 +34,7 @@ public sealed class SelfTest(MainWindow window, CheckSession session)
         window.Content = new ScrollViewer { Content = host };
         session.Document.Consent.TestsAgreed = session.Document.Consent.SystemInfoAgreed = session.Document.Consent.SaveAgreed = true;
         session.Document.System = SystemFacts.Read(includeModel: false);
+        session.Document.Questions["selftest"] = "automated run: no person answered; checks that need a person are UNABLE TO TEST";
         session.Event("selftest: started" + (fixtures is null ? " (no E2 fixtures)" : ""));
         try
         {
@@ -43,11 +44,14 @@ public sealed class SelfTest(MainWindow window, CheckSession session)
             {
                 using var hosts = Environment.GetEnvironmentVariable("MACCHECK_LOG_HOSTS") == "1" && OperatingSystem.IsWindows() ? new MacCheck.Core.DevOnly.HostLoggingProxy() : null;
                 E4Runner.DevProxyPort = hosts?.Port;
+                // Development only: reproduce macOS's late bridge on Windows/Linux (ignored on macOS).
+                E4.App.AvaloniaWebViewDddiceRoller.DevSimulateLateBridge = Environment.GetEnvironmentVariable("MACCHECK_SIMULATE_LATE_BRIDGE") == "1" && !OperatingSystem.IsMacOS();
+                if (E4.App.AvaloniaWebViewDddiceRoller.DevSimulateLateBridge) session.Document.Questions["selftest: development simulation"] = "bridge hidden until page load (macOS order)";
                 using var e4 = new E4Runner(session, border);
-                await e4.RunAutomaticAsync();
-                e4.RecordAnswers(Answer.Yes, Answer.Yes);
+                try { await e4.RunAutomaticAsync(); }
+                catch (Exception ex) { session.Event($"selftest: dice section stopped by {ex.GetType().Name}"); }
+                e4.RecordAnswers(Answer.NotAsked, Answer.NotAsked); // nobody watched: these stay UNABLE TO TEST
                 await e4.ShutdownAsync();
-                session.Document.Questions["selftest"] = "tester answers were filled in automatically (Yes)";
                 if (hosts is not null) session.Document.Questions["selftest: hosts the embedded browser connected to (via proxy)"] = string.Join(", ", hosts.Hosts);
             }
             else session.Document.E4.Note = "not run (--no-dice)";
@@ -109,7 +113,8 @@ public sealed class SelfTest(MainWindow window, CheckSession session)
             }
             await Settle();
             var item = window.CheckE3(step, editorSession, controller, messages, 0);
-            if (step.Question is not null) { item.TesterAnswer = Answer.Yes; item.Outcome = Outcomes.Combine(item.AutomaticPass, Answer.Yes); }
+            // What the tester is asked to look at cannot be confirmed without a person: never PASS here.
+            if (step.Question is not null && item.AutomaticPass) { item.Outcome = Outcomes.Observation(shown: true, Answer.NotAsked); item.Detail += "; on-screen confirmation needs a person"; }
             host.Children.Remove(box);
             host.Children.Remove(preview);
         }

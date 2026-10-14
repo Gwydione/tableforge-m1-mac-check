@@ -88,6 +88,8 @@ public sealed class PdfCaseResult
     public string? CaptureFile { get; set; }
     /// <summary>E2 readers that produced the same raw verdict for this PDF (context for reading the Mac result).</summary>
     public List<string> SameVerdictAsE2Readers { get; set; } = [];
+    /// <summary>Row coverage and order of the raw parse against the expected table (see <see cref="RowReport"/>).</summary>
+    public RowReport? Rows { get; set; }
 
     /// <summary>
     /// Mapping to the four outcomes. PASS = the raw paste parses to exactly the expected table. TEXT-DIFF (structure right,
@@ -122,6 +124,7 @@ public sealed class PdfCaseResult
             Seconds = Math.Round(seconds, 1),
             CaptureFile = $"e2/{c.Id}.txt",
             SameVerdictAsE2Readers = E2Baselines.SameAs(c.Id, raw.Verdict),
+            Rows = RowReport.ForRaw(pasted, c.Expected, raw.Flagged),
         };
     }
 }

@@ -130,9 +130,9 @@ public static class ResultsPackage
         if (d.System is { } sys) sb.Append("System: ").Append(string.Join(", ", sys.Select(kv => $"{kv.Key} {kv.Value}"))).Append("\n\n");
         sb.Append($"## E2 PDF copy from Preview: {Outcomes.Label(d.E2Summary.Outcome)}\n\n");
         sb.Append("Result = the raw parse of exactly what was pasted. \"Same as (E2)\" lists the readers tested in E2 that gave the same verdict for that PDF: a FAIL shared with the browser engines is a known parser limitation, not a Mac problem (see docs/EXPECTED-RESULTS.md).\n\n");
-        sb.Append("| PDF | Required | Result | Raw parse | Rows | Same as (E2) |\n|---|---|---|---|---|---|\n");
+        sb.Append("| PDF | Required | Result | Raw parse | Rows | Rows found | Row order | Not warned about | Same as (E2) |\n|---|---|---|---|---|---|---|---|---|\n");
         foreach (var r in d.E2)
-            sb.Append($"| {r.Case} | {(r.Mandatory ? "yes" : "optional")} | {Outcomes.Label(r.Outcome)} | {r.RawVerdict ?? (r.ContentRejected ? "pasted text not the test PDF (not stored)" : "—")} | {r.ParsedRows?.ToString() ?? "—"}/{r.ExpectedRows?.ToString() ?? "—"} | {(r.RawVerdict is null ? "" : r.SameVerdictAsE2Readers.Count == 0 ? "none — new behaviour" : string.Join(", ", r.SameVerdictAsE2Readers))} |\n");
+            sb.Append($"| {r.Case} | {(r.Mandatory ? "yes" : "optional")} | {Outcomes.Label(r.Outcome)} | {r.RawVerdict ?? (r.ContentRejected ? "pasted text not the test PDF (not stored)" : "—")} | {r.ParsedRows?.ToString() ?? "—"}/{r.ExpectedRows?.ToString() ?? "—"} | {r.Rows?.Coverage ?? "—"} | {r.Rows?.Order ?? "—"} | {r.Rows?.Silent ?? ""} | {(r.RawVerdict is null ? "" : r.SameVerdictAsE2Readers.Count == 0 ? "none — new behaviour" : string.Join(", ", r.SameVerdictAsE2Readers))} |\n");
         foreach (var s in new[] { d.E4, d.E3, d.E1 })
         {
             if (s.Optional && s.Checks.Count == 0) continue;

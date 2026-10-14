@@ -20,6 +20,23 @@ outcome; TableForge's cleanup tools are reported separately.
 | c04-hyphenation | optional | Curious Trinkets | d10 | 10 | TEXT-DIFF | TEXT-DIFF | TEXT-DIFF | TEXT-DIFF | FAIL-flagged |
 | c06-special-characters | optional | Alchemist’s Shelf | d8 | 8 | PASS | PASS | PASS | PASS | FAIL-flagged |
 
+macOS Preview, measured on GitHub's macOS 15.7.9 runners in the first trial (run 38477574883; automated ⌘A/⌘C, not a
+person; kept as `tests/MacCheck.Tests/preview-runner-fixtures/`). Rows found / rows out of order are shown where they matter:
+
+| Case | Preview, Apple Silicon | Preview, Intel |
+|---|---|---|
+| c01-d20-simple | PASS | PASS |
+| c02-d100-four-columns | FAIL-flagged (5/20 rows) | FAIL-flagged (5/20 rows) |
+| c05-d66-two-columns | **FAIL-silent: 36/36 rows, 17 out of order, no parser warning** | PASS |
+| c07-open-ended-ranges | FAIL-flagged | FAIL-flagged |
+| c08-heading-two-result-columns | PASS | PASS |
+| c03-wrapped-text | FAIL-flagged (10/12 rows) | FAIL-flagged (10/12 rows) |
+| c04-hyphenation | FAIL-flagged (9/10 rows) | FAIL-flagged (9/10 rows) |
+| c06-special-characters | TEXT-DIFF | TEXT-DIFF |
+
+Preview's reading order for c05 differed between the two runners on the same macOS version; a tester's result may be
+either. A silent reorder is always reported as FAIL with the row evidence (`rows.silent`).
+
 ## Expected tables
 
 ### c01-d20-simple — Roadside Encounters (d20)

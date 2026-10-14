@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="e2-fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="preview-runner-fixtures\**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\PROVENANCE.md" Link="PROVENANCE.md" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\MacCheck.Core\TableForge\**" LinkBase="tf-copies" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

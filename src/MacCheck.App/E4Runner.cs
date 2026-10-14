@@ -94,10 +94,17 @@ public sealed class E4Runner : IDisposable
         await Step("E4-ready", async () =>
         {
             var t = Stopwatch.StartNew();
-            await _provider.PrepareAsync(CancellationToken.None);
+            string Page() => "; page: " + (_roller.LastBridgeFacts?.ToString() ?? "no bridge check result");
+            try { await _provider.PrepareAsync(CancellationToken.None); }
+            catch (Exception ex)
+            {
+                Add("E4-ready", "Dice view created inside the app and dddice ready", false,
+                    $"{ex.GetType().Name}: {_session.Redactor.Clean(ex.Message)}; {AvaloniaWebViewDddiceRoller.Describe(_roller.AdapterInfo)}" + _session.Redactor.Clean(Page()));
+                return;
+            }
             ready = _roller.IsReady;
             Add("E4-ready", "Dice view created inside the app and dddice ready", ready,
-                $"{AvaloniaWebViewDddiceRoller.Describe(_roller.AdapterInfo)}, ready in {t.Elapsed.TotalSeconds:0.0} s");
+                $"{AvaloniaWebViewDddiceRoller.Describe(_roller.AdapterInfo)}, ready in {t.Elapsed.TotalSeconds:0.0} s" + _session.Redactor.Clean(Page()));
         });
         if (!ready)
         {
@@ -221,11 +228,26 @@ public sealed class E4Runner : IDisposable
 
     public string? LastResult { get; private set; }
 
-    /// <summary>The tester's two observations, recorded as their own checks.</summary>
+    /// <summary>
+    /// The tester's two observations, recorded as their own checks. Only a person's "Yes" after dice were actually shown
+    /// can pass them; with no roll shown, or no answer (automated run), they are UNABLE TO TEST.
+    /// </summary>
     public void RecordAnswers(Answer animated, Answer facesMatch)
     {
-        Add("E4-seen-animation", "Tester saw the dice tumble and land", true, null, animated);
-        Add("E4-seen-faces", "Tester: the dice faces match the result shown", true, LastResult, facesMatch);
+        var shown = LastResult is not null;
+        string? Why(Answer a) => !shown ? "no dice were shown (the dice section did not complete)" : a == Answer.NotAsked ? "needs a person watching the screen" : null;
+        Put(new CheckItem { Id = "E4-seen-animation", Title = "Tester saw the dice tumble and land", AutomaticPass = shown, TesterAnswer = animated,
+            Detail = Why(animated), Outcome = Outcomes.Observation(shown, animated) });
+        Put(new CheckItem { Id = "E4-seen-faces", Title = "Tester: the dice faces match the result shown", AutomaticPass = shown, TesterAnswer = facesMatch,
+            Detail = string.Join("; ", new[] { Why(facesMatch), LastResult }.Where(s => s is not null)), Outcome = Outcomes.Observation(shown, facesMatch) });
+    }
+
+    private void Put(CheckItem item)
+    {
+        Section.Checks.RemoveAll(c => c.Id == item.Id);
+        Section.Checks.Add(item);
+        _session.Log.Write($"check {item.Id}: {Outcomes.Label(item.Outcome)} {item.Detail}");
+        _session.Save();
     }
 
     /// <summary>
@@ -247,8 +269,10 @@ public sealed class E4Runner : IDisposable
                 await Task.Delay(250);
                 remaining = ProcessTree.Descendants(Environment.ProcessId).Where(p => Engine(p, self)).ToList();
             }
-            Add("E4-shutdown", "Dice view closed and its helper processes exited", remaining.Count == 0,
-                $"engine helper processes {before.Count} → {remaining.Count} ({string.Join(",", before.Select(p => p.Name).Distinct())})");
+            var outcome = Outcomes.Shutdown(before.Count, remaining.Count);
+            Put(new CheckItem { Id = "E4-shutdown", Title = "Dice view closed and its helper processes exited", AutomaticPass = outcome == Outcome.Pass, Outcome = outcome,
+                Detail = $"engine helper processes {before.Count} → {remaining.Count} ({string.Join(",", before.Select(p => p.Name).Distinct())})"
+                    + (before.Count == 0 ? "; no helper processes are visible to the app, so this cannot be confirmed here" : "") });
         }
         catch (Exception ex) { Add("E4-shutdown", "Dice view closed and its helper processes exited", false, ex.GetType().Name); }
     }

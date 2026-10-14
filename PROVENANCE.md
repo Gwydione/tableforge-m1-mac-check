@@ -47,4 +47,5 @@ Each hash is the git blob SHA-1, equal to `git rev-parse v1.0.0:<path>` in that 
 | src/MacCheck.Core/PdfCaseEvaluator.cs | generated from experiment E2's harness (E2Harness/Program.cs) by text extraction |
 | corpus/ (8 PDFs, expected.json, case.md) | experiment E2: synthetic, original content, typeset with DejaVu fonts |
 | tests/MacCheck.Tests/e2-fixtures/ | experiment E2: text captured from those synthetic PDFs in Windows/Linux readers, and E2's results (regression oracle) |
+| tests/MacCheck.Tests/preview-runner-fixtures/ | this repository's first workflow run (38477574883): macOS 15.7.9 Preview text of the same synthetic PDFs, Apple Silicon and Intel |
 | packaging/icon-source.png | [branding/TableForge-icon-source.png](https://github.com/Gwydione/TableForge/blob/v1.0.0/branding/TableForge-icon-source.png) (byte-identical) |

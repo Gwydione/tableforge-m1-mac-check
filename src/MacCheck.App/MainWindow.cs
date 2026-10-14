@@ -376,7 +376,8 @@ public sealed partial class MainWindow : Window
             host.Children.Remove(box);
             var ok = seen.SequenceEqual(Enumerable.Range(0, text.Length + 1));
             if (!stock) fixedOk = ok;
-            walks.Add($"{(stock ? "stock TextBox" : "E3 editor")}: {(ok ? "one stop per letter" : string.Join(" ", seen))}");
+            var moved = seen.Distinct().Count() > 1;
+            walks.Add($"{(stock ? "stock TextBox (comparison only)" : "E3 editor")}: {(ok ? "one stop per letter" : moved ? string.Join(" ", seen) : "caret did not move — not measured")}");
         }
         _s.Document.E3.Checks.Add(new CheckItem { Id = "E3-auto-ligature-caret", Title = "Caret moves one letter at a time through fi/fl/ff (automatic)", AutomaticPass = fixedOk, Outcome = fixedOk ? Outcome.Pass : Outcome.Fail, Detail = string.Join("; ", walks) });
         _s.Log.Write("e3 ligature caret: " + string.Join("; ", walks));

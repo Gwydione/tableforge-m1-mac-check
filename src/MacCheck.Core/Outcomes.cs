@@ -47,6 +47,26 @@ public static class Outcomes
         _ => Outcome.Pass,
     };
 
+    /// <summary>
+    /// A check that only a person can confirm (for example "the dice tumbled"). It is never PASS without a person's "Yes":
+    /// no answer (an automated run) or a missing precondition (nothing was shown) is UNABLE TO TEST.
+    /// </summary>
+    public static Outcome Observation(bool shown, Answer answer) => (shown, answer) switch
+    {
+        (false, _) => Outcome.UnableToTest,
+        (true, Answer.Yes) => Outcome.Pass,
+        (true, Answer.No) => Outcome.Fail,
+        (true, Answer.NotSure) => Outcome.Inconclusive,
+        _ => Outcome.UnableToTest,
+    };
+
+    /// <summary>
+    /// The dice view's shutdown check. With no engine helper processes to watch (macOS: WKWebView's helpers are system
+    /// services, not children of the app) there is no evidence either way: INCONCLUSIVE, never PASS.
+    /// </summary>
+    public static Outcome Shutdown(int helpersBefore, int helpersRemaining) =>
+        helpersRemaining > 0 ? Outcome.Fail : helpersBefore == 0 ? Outcome.Inconclusive : Outcome.Pass;
+
     /// <summary>A section is as good as its weakest required item: FAIL > INCONCLUSIVE > UNABLE TO TEST > PASS.</summary>
     public static Outcome Worst(IEnumerable<Outcome> outcomes)
     {

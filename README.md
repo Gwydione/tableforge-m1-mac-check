@@ -5,13 +5,15 @@ copying tables from PDFs in Preview (E2), 3D dddice dice embedded with Avalonia'
 editing with macOS shortcuts (E3), and optionally dice in Safari (E1).
 
 This public repository exists only to run a manually triggered GitHub Actions trial on standard macOS runners
-(`.github/workflows/mac-check-trial.yml`). There are no releases and no installable packages here.
+(`.github/workflows/mac-check-trial.yml`). There are no releases and no installable packages here (the trial's test
+packages exist only as short-lived workflow artifacts; they are ad-hoc signed and not notarized).
 
 - `src/MacCheck.Core` — UI-free code, including byte-identical copies of 26 TableForge 1.0.0 source files (see
   `PROVENANCE.md`); `src/MacCheck.App` — the Avalonia wizard (including a development `--selftest` mode).
 - `tests/MacCheck.Tests` — automated tests (model, privacy, packaging, headless UI).
 - `corpus/` — 8 synthetic test PDFs with expected tables; `tests/MacCheck.Tests/e2-fixtures/` — their text as captured in
-  other PDF readers.
+  other PDF readers; `tests/MacCheck.Tests/preview-runner-fixtures/` — their text as macOS Preview copied it on the
+  runners of the first trial.
 - `packaging/macpack.py` — assembles, verifies and zips the macOS app bundle.
 
 Build: .NET SDK 10.0.401 (`global.json`), Avalonia 12.1.3, Avalonia.Controls.WebView 12.1.0.
