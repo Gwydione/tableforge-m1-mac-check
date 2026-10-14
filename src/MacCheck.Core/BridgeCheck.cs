@@ -25,21 +25,49 @@ public static class BridgeCheck
         JSON.stringify((() => { const d = window.__tfDiag || {};
           return { bridge: typeof window.invokeCSharpAction, bridgeAtStart: d.bridgeAtStart || 'unknown', tf: typeof window.tf,
             sdk: typeof ThreeDDice, sdkLoadFailed: !!window.__sdkLoadFailed, origin: location.protocol + '//' + location.hostname,
-            readyState: document.readyState, errors: (d.errors || []).slice(0, 5), blocked: (d.blocked || []).slice(0, 5) }; })())
+            readyState: document.readyState, errors: (d.errors || []).slice(0, 5), blocked: (d.blocked || []).slice(0, 5),
+            gl: window.__tfGl || (window.__tfGl = (() => { const r = { webgl2: 'none', webgl: 'none', renderer: '', hardware: 'unknown' };
+              const release = c => { try { const l = c.getExtension('WEBGL_lose_context'); if (l) l.loseContext(); } catch (e) {} };
+              for (const k of ['webgl2', 'webgl']) { let c = null; try { c = document.createElement('canvas').getContext(k); } catch (e) {}
+                if (!c) continue; let p = null; try { p = c.getShaderPrecisionFormat(c.VERTEX_SHADER, c.HIGH_FLOAT); } catch (e) {}
+                r[k] = c.isContextLost() ? 'lost' : p ? 'ok' : 'unusable';
+                if (!r.renderer) { try { const i = c.getExtension('WEBGL_debug_renderer_info');
+                  r.renderer = String(c.getParameter(i ? i.UNMASKED_RENDERER_WEBGL : c.RENDERER)).slice(0, 80); } catch (e) {} }
+                release(c); }
+              try { const c = document.createElement('canvas').getContext('webgl', { failIfMajorPerformanceCaveat: true });
+                r.hardware = c ? 'yes' : 'no'; if (c) release(c); } catch (e) {}
+              return r; })()) }; })())
         """;
 
     /// <summary>Has the page announce itself through the bridge (the message 1.0.0's page sends while loading).</summary>
     public const string ReplayScript = "window.invokeCSharpAction({ kind: 'pageLoaded' }); 'sent'";
 
     public sealed record Facts(string Bridge, string BridgeAtStart, string Tf, string Sdk, bool SdkLoadFailed, string Origin,
-        string ReadyState, IReadOnlyList<string> Errors, IReadOnlyList<string> Blocked)
+        string ReadyState, IReadOnlyList<string> Errors, IReadOnlyList<string> Blocked, Graphics? Gl = null)
     {
         public bool BridgeReady => Bridge == "function" && Tf == "object";
 
         public override string ToString() =>
             $"invokeCSharpAction={Bridge} (at document start: {BridgeAtStart}), tf={Tf}, ThreeDDice={Sdk}, sdkLoadFailed={SdkLoadFailed}, " +
             $"origin={Origin}, readyState={ReadyState}, script errors={Errors.Count}{(Errors.Count > 0 ? " [" + string.Join(" | ", Errors) + "]" : "")}, " +
-            $"blocked resources={Blocked.Count}{(Blocked.Count > 0 ? " [" + string.Join(" | ", Blocked) + "]" : "")}";
+            $"blocked resources={Blocked.Count}{(Blocked.Count > 0 ? " [" + string.Join(" | ", Blocked) + "]" : "")}, " +
+            (Gl?.ToString() ?? "WebGL not probed");
+    }
+
+    /// <summary>
+    /// What the page's own engine offers for 3D (probed once per page, on throwaway canvases released at once). Each context
+    /// is "ok", "none" (no context at all), "lost", or "unusable": a context whose <c>getShaderPrecisionFormat</c> answers
+    /// null, which is the call dddice's 3D engine failed on, on the trial-2 Intel runner. <c>Hardware</c> is "no" when the
+    /// engine gives WebGL only with a major performance caveat (software rendering) or not at all. <c>Renderer</c> is the
+    /// engine's renderer name (a GPU model or a software renderer), at most 80 characters.
+    /// </summary>
+    public sealed record Graphics(string WebGl2, string WebGl, string Renderer, string Hardware)
+    {
+        /// <summary>dddice's 3D engine needs a working WebGL2 context.</summary>
+        public bool Usable => WebGl2 == "ok";
+
+        public override string ToString() =>
+            $"WebGL2={WebGl2}, WebGL={WebGl}, hardware-accelerated={Hardware}, renderer={(Renderer.Length > 0 ? Renderer : "(none)")}";
     }
 
     /// <summary>Parses the probe's answer (InvokeScript returns the JSON string, possibly itself JSON-quoted).</summary>
@@ -55,11 +83,39 @@ public static class BridgeCheck
             string S(string name) => r.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? Clip(v.GetString()!, 40) : "?";
             List<string> L(string name) => r.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array
                 ? v.EnumerateArray().Take(5).Select(x => Clip(x.ToString(), 160)).ToList() : [];
+            Graphics? gl = null;
+            if (r.TryGetProperty("gl", out var g) && g.ValueKind == JsonValueKind.Object)
+            {
+                string G(string name, int max) => g.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? Clip(v.GetString()!, max) : "?";
+                gl = new Graphics(G("webgl2", 12), G("webgl", 12), G("renderer", 80), G("hardware", 12));
+            }
             return new Facts(S("bridge"), S("bridgeAtStart"), S("tf"), S("sdk"),
-                r.TryGetProperty("sdkLoadFailed", out var f) && f.ValueKind == JsonValueKind.True, S("origin"), S("readyState"), L("errors"), L("blocked"));
+                r.TryGetProperty("sdkLoadFailed", out var f) && f.ValueKind == JsonValueKind.True, S("origin"), S("readyState"), L("errors"), L("blocked"), gl);
         }
         catch (JsonException) { return null; }
     }
+
+    /// <summary>
+    /// The message for a dice start that failed on the page (<c>initFailed</c>, not a refused login). TableForge 1.0.0 calls
+    /// every such failure a connection problem; when dddice's 3D engine could not get working graphics (WebGL) that is
+    /// misleading, so a graphics failure — recognised from the engine's error or from the page's WebGL facts — gets its own.
+    /// </summary>
+    public static string StartFailureMessage(string? pageError, Facts? facts) =>
+        IsGraphicsFailure(pageError, facts) ? GraphicsUnavailable : "TableForge could not connect to dddice's room. Check the internet connection.";
+
+    public const string GraphicsUnavailable =
+        "The 3D dice could not start: 3D graphics (WebGL) were not available in the dice view. This is not an internet connection problem.";
+
+    /// <summary>
+    /// The renderer name is usually the GPU model: system information, recorded only with the tester's consent to share it
+    /// (results format). Without that consent it is replaced; whether graphics are hardware-accelerated stays.
+    /// </summary>
+    public static string WithholdRenderer(string text) =>
+        System.Text.RegularExpressions.Regex.Replace(text, @"renderer=[^;\r\n]*", "renderer=<not recorded: no consent to share system information>");
+
+    public static bool IsGraphicsFailure(string? pageError, Facts? facts) =>
+        facts?.Gl is { Usable: false, WebGl2: not "?" }
+        || pageError is not null && System.Text.RegularExpressions.Regex.IsMatch(pageError, @"(?i)webgl|getShaderPrecisionFormat|getContext|shader|creating .*context");
 
     /// <summary>
     /// Whether the app should have the page send <c>pageLoaded</c> again: only when the page is ours, loaded, the bridge

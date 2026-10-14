@@ -299,7 +299,8 @@ public sealed partial class MainWindow : Window
             _e4.Progress += t => Dispatcher.UIThread.Post(() => status.Text = t);
             try { await _e4.RunAutomaticAsync(); }
             catch (Exception ex) { _s.Event($"e4 stopped: {ex.GetType().Name}"); }
-            status.Text = "Please answer the two questions below.";
+            // Say why the dice did not start (for example missing 3D graphics rather than the internet connection).
+            status.Text = _e4.StartFailure is { } why ? why + " Please answer the two questions below." : "Please answer the two questions below.";
             lastResult.Text = _e4.LastResult ?? "(no result)";
             questions.IsVisible = true;
         };

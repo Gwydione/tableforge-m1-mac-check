@@ -99,7 +99,9 @@ public sealed class AvaloniaWebViewDddiceRoller : IDddiceRoomRoller, IDisposable
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             SetState("failed");
-            throw new DddiceException("dddice did not become ready in time. Check the internet connection.");
+            throw new DddiceException(MacCheck.Core.BridgeCheck.IsGraphicsFailure(null, LastBridgeFacts)
+                ? MacCheck.Core.BridgeCheck.GraphicsUnavailable
+                : "dddice did not become ready in time. Check the internet connection.");
         }
         catch (DddiceException ex) when (ex.IsAuthProblem)
         {
@@ -264,9 +266,10 @@ public sealed class AvaloniaWebViewDddiceRoller : IDddiceRoomRoller, IDisposable
                 break;
             case "initFailed":
                 var auth = message.Contains("401") || message.Contains("403");
+                // M1 correction: a 3D-graphics (WebGL) failure is no longer reported as an internet problem (trial 2, Intel).
                 _pageReady?.TrySetException(new DddiceException(auth
                     ? "dddice refused the guest login for its room."
-                    : "TableForge could not connect to dddice's room. Check the internet connection.", auth));
+                    : MacCheck.Core.BridgeCheck.StartFailureMessage(message, LastBridgeFacts), auth));
                 break;
             case "connectionState" when root.TryGetProperty("state", out var s):
                 ConnectionState = s.GetString() ?? "?";

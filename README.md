@@ -15,6 +15,8 @@ packages exist only as short-lived workflow artifacts; they are ad-hoc signed an
   other PDF readers; `tests/MacCheck.Tests/preview-runner-fixtures/` — their text as macOS Preview copied it on the
   runners of the first trial.
 - `packaging/macpack.py` — assembles, verifies and zips the macOS app bundle.
+- `packaging/macos-package-trial.sh` — on the macOS runner: seals the bundle with Apple's `codesign`, checks the seal
+  before and after zip round trips (ditto, Archive Utility, unzip), and a bounded Gatekeeper assessment.
 
 Build: .NET SDK 10.0.401 (`global.json`), Avalonia 12.1.3, Avalonia.Controls.WebView 12.1.0.
 

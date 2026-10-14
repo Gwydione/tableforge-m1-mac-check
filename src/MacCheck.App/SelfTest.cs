@@ -47,6 +47,9 @@ public sealed class SelfTest(MainWindow window, CheckSession session)
                 // Development only: reproduce macOS's late bridge on Windows/Linux (ignored on macOS).
                 E4.App.AvaloniaWebViewDddiceRoller.DevSimulateLateBridge = Environment.GetEnvironmentVariable("MACCHECK_SIMULATE_LATE_BRIDGE") == "1" && !OperatingSystem.IsMacOS();
                 if (E4.App.AvaloniaWebViewDddiceRoller.DevSimulateLateBridge) session.Document.Questions["selftest: development simulation"] = "bridge hidden until page load (macOS order)";
+                // Development only (WebView2): WebGL switched off, to exercise the graphics-failure message.
+                E4Runner.DevDisableWebGl = Environment.GetEnvironmentVariable("MACCHECK_SIMULATE_NO_WEBGL") == "1" && OperatingSystem.IsWindows();
+                if (E4Runner.DevDisableWebGl) session.Document.Questions["selftest: development simulation (WebGL)"] = "WebGL switched off in WebView2";
                 using var e4 = new E4Runner(session, border);
                 try { await e4.RunAutomaticAsync(); }
                 catch (Exception ex) { session.Event($"selftest: dice section stopped by {ex.GetType().Name}"); }

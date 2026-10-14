@@ -30,7 +30,7 @@ public sealed class E4Runner : IDisposable
     {
         _session = session;
         _panel = panel;
-        _diag.LineAdded += line => session.Log.Write("e4 " + SanitizeDiceLog(line[10..]));
+        _diag.LineAdded += line => session.Log.Write("e4 " + Private(SanitizeDiceLog(line[10..])));
         _roller = new AvaloniaWebViewDddiceRoller(v => { _panel.Child = v; return Task.CompletedTask; }, v => { if (ReferenceEquals(_panel.Child, v)) _panel.Child = null; }, Configure, _rest, _diag);
         _provider = new DddiceDiceProvider(_roller);
     }
@@ -46,6 +46,9 @@ public sealed class E4Runner : IDisposable
 
     /// <summary>Development self-test only: route the WebView2 browser through a host-logging proxy on this port.</summary>
     public static int? DevProxyPort { get; set; }
+
+    /// <summary>Development self-test only (WebView2): start the browser with WebGL switched off, to exercise the graphics-failure path.</summary>
+    public static bool DevDisableWebGl { get; set; }
     private SectionResult Section => _session.Document.E4;
 
     private void Configure(NativeWebView view) => view.EnvironmentRequested += (_, e) =>
@@ -58,7 +61,8 @@ public sealed class E4Runner : IDisposable
                 break;
             case WindowsWebView2EnvironmentRequestedEventArgs w:
                 w.UserDataFolder = Path.Combine(_profile, "webview2"); // development runs only; deleted with the work folder
-                w.AdditionalBrowserArguments = "--disable-features=CalculateNativeWinOcclusion" + (DevProxyPort is { } port ? $" --proxy-server=http://127.0.0.1:{port}" : "");
+                w.AdditionalBrowserArguments = "--disable-features=CalculateNativeWinOcclusion" + (DevDisableWebGl ? " --disable-3d-apis" : "")
+                    + (DevProxyPort is { } port ? $" --proxy-server=http://127.0.0.1:{port}" : "");
                 break;
             case LinuxWpeWebViewEnvironmentRequestedEventArgs wpe:
                 wpe.DataDirectory = Path.Combine(_profile, "wpe");
@@ -94,10 +98,11 @@ public sealed class E4Runner : IDisposable
         await Step("E4-ready", async () =>
         {
             var t = Stopwatch.StartNew();
-            string Page() => "; page: " + (_roller.LastBridgeFacts?.ToString() ?? "no bridge check result");
+            string Page() => "; page: " + Private(_roller.LastBridgeFacts?.ToString() ?? "no bridge check result");
             try { await _provider.PrepareAsync(CancellationToken.None); }
             catch (Exception ex)
             {
+                StartFailure = _session.Redactor.Clean(ex.Message);
                 Add("E4-ready", "Dice view created inside the app and dddice ready", false,
                     $"{ex.GetType().Name}: {_session.Redactor.Clean(ex.Message)}; {AvaloniaWebViewDddiceRoller.Describe(_roller.AdapterInfo)}" + _session.Redactor.Clean(Page()));
                 return;
@@ -108,26 +113,26 @@ public sealed class E4Runner : IDisposable
         });
         if (!ready)
         {
-            Section.Note = "dddice did not become ready; the remaining dice checks could not run";
-            foreach (var id in new[] { "E4-bridge", "E4-animation", "E4-rolls", "E4-integrity", "E4-navigation", "E4-reopen" })
+            StartFailure ??= "dddice did not become ready.";
+            // The page and its bridge do not depend on dddice's 3D engine: when the page loaded with a bridge, check both
+            // directions and the graphics anyway, so a graphics failure is told apart from a bridge failure.
+            MacCheck.Core.BridgeCheck.Facts? facts = null;
+            try { facts = MacCheck.Core.BridgeCheck.Parse(await Eval(MacCheck.Core.BridgeCheck.ProbeScript)); } catch (Exception) { }
+            var pageUp = facts is { Bridge: "function" };
+            if (pageUp)
+            {
+                await Step("E4-bridge", BridgeChecks);
+                await Step("E4-graphics", GraphicsCheck);
+            }
+            Section.Note = $"dddice did not become ready ({StartFailure}); the remaining dice checks could not run";
+            foreach (var id in (pageUp ? [] : new[] { "E4-bridge", "E4-graphics" }).Concat(["E4-animation", "E4-rolls", "E4-integrity", "E4-navigation", "E4-reopen"]))
                 Section.Checks.Add(new CheckItem { Id = id, Title = id, Outcome = Outcome.UnableToTest, Detail = "dddice not ready" });
             return;
         }
         await InstallProbe();
 
-        await Step("E4-bridge", async () =>
-        {
-            var sum = await Eval("6 * 7");
-            var env = await Eval("location.protocol + ' secure=' + window.isSecureContext + ' webgl2=' + !!document.createElement('canvas').getContext('webgl2')");
-            var got = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            void H(string k, string j) { if (k == "warmSkipped" && j.Contains("mac-check-ping")) got.TrySetResult(); }
-            _roller.PageMessage += H;
-            await Eval("window.invokeCSharpAction({ kind: 'warmSkipped', message: 'mac-check-ping' })");
-            var echoed = await Task.WhenAny(got.Task, Task.Delay(5000)) == got.Task;
-            _roller.PageMessage -= H;
-            Add("E4-bridge", "App ↔ page messages both ways; secure context with WebGL2", sum == "42" && echoed && env?.Contains("secure=true webgl2=true") == true,
-                $"app→page {sum}; page→app {(echoed ? "received" : "missing")}; {env}");
-        });
+        await Step("E4-bridge", BridgeChecks);
+        await Step("E4-graphics", GraphicsCheck);
 
         Say("Rolling 2d20 — watch the dice…");
         await Step("E4-animation", async () =>
@@ -227,6 +232,37 @@ public sealed class E4Runner : IDisposable
     }
 
     public string? LastResult { get; private set; }
+
+    /// <summary>Why the dice did not start (the tester sees it), or null when they did.</summary>
+    public string? StartFailure { get; private set; }
+
+    /// <summary>App → page (a script result) and page → app (a message through the real bridge); secure context.</summary>
+    private async Task BridgeChecks()
+    {
+        var sum = await Eval("6 * 7");
+        var env = await Eval("location.protocol + ' secure=' + window.isSecureContext");
+        var got = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void H(string k, string j) { if (k == "warmSkipped" && j.Contains("mac-check-ping")) got.TrySetResult(); }
+        _roller.PageMessage += H;
+        await Eval("window.invokeCSharpAction({ kind: 'warmSkipped', message: 'mac-check-ping' })");
+        var echoed = await Task.WhenAny(got.Task, Task.Delay(5000)) == got.Task;
+        _roller.PageMessage -= H;
+        Add("E4-bridge", "App ↔ page messages both ways; secure context", sum == "42" && echoed && env?.Contains("secure=true") == true,
+            $"app→page {sum}; page→app {(echoed ? "received" : "missing")}; {env}");
+    }
+
+    /// <summary>
+    /// WebGL2 as dddice's 3D engine needs it (a working context, not just an object), from the page's own probe, which is
+    /// independent of whether dddice started. The renderer name shows whether a GPU or a software renderer is exposed.
+    /// </summary>
+    private async Task GraphicsCheck()
+    {
+        var gl = MacCheck.Core.BridgeCheck.Parse(await Eval(MacCheck.Core.BridgeCheck.ProbeScript))?.Gl;
+        Add("E4-graphics", "3D graphics (WebGL2) work in the dice view", gl is { Usable: true }, Private(gl?.ToString() ?? "no answer from the page"));
+    }
+
+    /// <summary>The renderer (GPU) name only with the tester's consent to share system information.</summary>
+    private string Private(string text) => _session.Document.Consent.SystemInfoAgreed ? text : MacCheck.Core.BridgeCheck.WithholdRenderer(text);
 
     /// <summary>
     /// The tester's two observations, recorded as their own checks. Only a person's "Yes" after dice were actually shown

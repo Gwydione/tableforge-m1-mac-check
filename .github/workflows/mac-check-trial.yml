@@ -1,19 +1,24 @@
 # TableForge Mac Check — macOS runner trial (validation harness, not a TableForge release).
 # Manual only. Standard GitHub-hosted runners only (free for public repositories; no larger runners). No secrets.
 #
-# Job 1 (windows-2025) builds the two macOS packages exactly as the Windows development machine does. Jobs 2a/2b run on
-# Apple Silicon (macos-15, M1) and Intel (macos-15-intel) and record, separately:
-#   - the automated test suite on macOS;
+# Job 1 (windows-2025) builds the macOS packages exactly as the Windows development machine does, in two layouts:
+#   - current layout: the self-contained publish folder (202 managed .dll files beside the executable in Contents/MacOS);
+#   - single-file: the same app published with PublishSingleFile=true (only Mach-O files in Contents/MacOS).
+# Jobs 2a/2b run on Apple Silicon (macos-15, M1) and Intel (macos-15-intel) and record, separately:
+#   - the automated test suite on macOS, and the runner's graphics (GPU / Metal) facts;
 #   - the original Windows-built package (for comparison): architecture, permissions, signatures, Gatekeeper assessment;
-#   - the SEALED package: the same Windows-built app, sealed ad hoc with Apple's own codesign on the runner (the only
-#     change is the signature), zipped with ditto, then extracted again as a download would be: signature verification,
-#     Gatekeeper assessment of a quarantined copy, and a launch (self-test) of the extracted copy through LaunchServices;
-#   - what Gatekeeper does when each quarantined package is opened (observed only: the app is either blocked or not);
+#   - PACKAGING (third trial): each layout is sealed ad hoc with Apple's codesign on the runner and verified BEFORE
+#     archiving; then zipped twice (ditto --norsrc: no extended attributes; ditto --sequesterRsrc: extended attributes
+#     kept in __MACOSX) and every zip is extracted four ways (ditto; Archive Utility, i.e. a Finder double-click;
+#     Archive Utility on a quarantined copy; Info-ZIP unzip). Each extracted app's signature is verified AFTER extraction;
 #   - Preview -> pasteboard captures of the 8 synthetic test PDFs (kept only if they contain the table title), which the
-#     self-test then evaluates as its E2 input.
-# Quarantine is only ever ADDED to copies that are assessed (simulating a browser download); it is never removed, and
-# Gatekeeper is never disabled. A launch on a CI runner does not show what a person who downloaded the app would see.
-# The sealed package is not notarized (no Apple Developer Program).
+#     self-tests then evaluate as their E2 input;
+#   - startup of each candidate package after extraction (LaunchServices, self-test, extracted copy NOT quarantined);
+#   - Gatekeeper, last: a bounded assessment of each quarantined candidate (signature validity and Gatekeeper verdict
+#     classified separately), and one observed first open through LaunchServices (no clicks; nothing bypassed).
+# Quarantine is only ever ADDED to copies (simulating a browser download); it is never removed, and Gatekeeper is never
+# disabled. A launch on a CI runner does not show what a person who downloaded the app would see.
+# The sealed packages are not notarized (no Apple Developer Program).
 name: mac-check-trial
 on:
   workflow_dispatch: {}
@@ -32,7 +37,7 @@ jobs:
   windows-package:
     name: Windows-built packages (windows-2025)
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -45,17 +50,21 @@ jobs:
           global-json-file: global.json
       - name: Tests on Windows
         run: dotnet test tests/MacCheck.Tests --logger "trx;LogFileName=$PWD/out/tests-windows.trx"
-      - name: Publish and bundle both macOS architectures (as on the development machine)
+      - name: Publish and bundle both macOS architectures, current layout and single-file (as on the development machine)
         run: |
           python -m pip install --quiet "pillow==12.3.0"
           mkdir -p out/packages
           for rid in osx-arm64 osx-x64; do
-            dotnet publish src/MacCheck.App -c Release -r $rid --self-contained -p:MacCheckBuildId=$BUILD_ID -o build/$rid/publish -nologo -v q
-            python packaging/macpack.py bundle --publish build/$rid/publish --rid $rid --version 0.1.0 --build-id "$BUILD_ID" --icon packaging/icon-source.png --out build/$rid/app
-            python packaging/macpack.py verify --app "build/$rid/app/TableForge Mac Check.app" --rid $rid > out/packages/verify-windows-built-$rid.json
-            mkdir -p "build/$rid/stage/TableForge Mac Check"
-            cp -R "build/$rid/app/TableForge Mac Check.app" "build/$rid/stage/TableForge Mac Check/"
-            python packaging/macpack.py zip --root "build/$rid/stage/TableForge Mac Check" --out out/packages/windows-built-$rid.zip
+            for layout in current-layout single-file; do
+              if [ $layout = single-file ]; then SF="-p:PublishSingleFile=true"; else SF=""; fi
+              B=build/$rid/$layout
+              dotnet publish src/MacCheck.App -c Release -r $rid --self-contained $SF -p:MacCheckBuildId=$BUILD_ID -o $B/publish -nologo -v q
+              python packaging/macpack.py bundle --publish $B/publish --rid $rid --version 0.1.0 --build-id "$BUILD_ID" --icon packaging/icon-source.png --out $B/app
+              python packaging/macpack.py verify --app "$B/app/TableForge Mac Check.app" --rid $rid > out/packages/verify-windows-built-$layout-$rid.json
+              mkdir -p "$B/stage/TableForge Mac Check"
+              cp -R "$B/app/TableForge Mac Check.app" "$B/stage/TableForge Mac Check/"
+              python packaging/macpack.py zip --root "$B/stage/TableForge Mac Check" --out out/packages/windows-built-$layout-$rid.zip
+            done
           done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
@@ -79,7 +88,7 @@ jobs:
             rid: osx-x64
             arch: x86_64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -92,6 +101,12 @@ jobs:
           mkdir -p out
           { echo "runner_label=${{ matrix.runner }}"; sw_vers; echo "uname_m=$(uname -m)"; echo "rosetta_translated=$(sysctl -n sysctl.proc_translated 2>/dev/null || echo n/a)"; system_profiler SPHardwareDataType | grep -E "Chip|Processor Name|Memory|Model Identifier" || true; } > out/runner-facts.txt
           cat out/runner-facts.txt
+      - name: Runner graphics facts (GPU and Metal, as macOS reports them)
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          system_profiler SPDisplaysDataType 2>&1 | grep -E "Chipset Model|Type:|Bus:|VRAM|Vendor|Metal|Displays:|Resolution|Virtual|Online|Display Type" > out/graphics-facts.txt
+          cat out/graphics-facts.txt
 
       - name: Automated tests on macOS
         continue-on-error: true
@@ -102,10 +117,11 @@ jobs:
           name: windows-built-packages
           path: wb
       - name: Windows-built package (comparison) — structure, permissions, signatures, Gatekeeper assessment
+        timeout-minutes: 5
         run: |
           set +e
           D=out/windows-built; mkdir -p $D
-          ditto -x -k wb/packages/windows-built-${{ matrix.rid }}.zip wb/x
+          ditto -x -k wb/packages/windows-built-current-layout-${{ matrix.rid }}.zip wb/x
           APP="wb/x/TableForge Mac Check/TableForge Mac Check.app"
           ls -l@ "$APP/Contents/MacOS/TableForgeMacCheck" > $D/permissions.txt 2>&1
           lipo -archs "$APP/Contents/MacOS/TableForgeMacCheck" > $D/archs.txt 2>&1
@@ -114,45 +130,27 @@ jobs:
           codesign -dv --verbose=4 "$APP/Contents/MacOS/TableForgeMacCheck" > $D/codesign-main.txt 2>&1
           codesign --verify --deep --strict --verbose=4 "$APP" > $D/codesign-verify-bundle.txt 2>&1; echo "exit $?" >> $D/codesign-verify-bundle.txt
           spctl --assess --type execute --verbose=4 "$APP" > $D/spctl-not-quarantined.txt 2>&1; echo "exit $?" >> $D/spctl-not-quarantined.txt
-          mkdir -p wbq; ditto "$APP" "wbq/TableForge Mac Check.app"
-          xattr -w com.apple.quarantine "0081;$(printf %x $(date +%s));Safari;" "wbq/TableForge Mac Check.app"
-          xattr -l "wbq/TableForge Mac Check.app" > $D/quarantine-attribute.txt 2>&1
-          spctl --assess --type execute --verbose=4 "wbq/TableForge Mac Check.app" > $D/spctl-quarantined.txt 2>&1; echo "exit $?" >> $D/spctl-quarantined.txt
-          syspolicy_check distribution "wbq/TableForge Mac Check.app" > $D/syspolicy-check.txt 2>&1; echo "exit $?" >> $D/syspolicy-check.txt
           true
 
-      - name: Sealed package — seal the Windows-built app ad hoc with Apple codesign, zip with ditto
+      - name: Packaging — seal both layouts with Apple codesign, verify before archiving, zip two ways
+        timeout-minutes: 8
         run: |
-          set +e
-          D=out/sealed; mkdir -p $D out/sealed-package "seal/TableForge Mac Check"
-          ditto "wb/x/TableForge Mac Check/TableForge Mac Check.app" "seal/TableForge Mac Check/TableForge Mac Check.app"
-          APP="seal/TableForge Mac Check/TableForge Mac Check.app"
-          xattr -lr "$APP" > $D/xattrs-before-signing.txt 2>&1
-          codesign --force --deep --sign - "$APP" > $D/codesign-sign.txt 2>&1; echo "exit $?" >> $D/codesign-sign.txt
-          ZIP="out/sealed-package/TableForge-Mac-Check-${{ matrix.rid }}-sealed.zip"
-          ditto -c -k --norsrc --keepParent "seal/TableForge Mac Check" "$ZIP"; echo "ditto exit $?" > $D/zip.txt
-          shasum -a 256 "$ZIP" >> $D/zip.txt
-          zipinfo "$ZIP" | grep -E "Contents/MacOS/TableForgeMacCheck$|Contents/Info.plist$|_CodeSignature/CodeResources$" >> $D/zip.txt 2>&1
-          true
+          for layout in current-layout single-file; do
+            mkdir -p wb/$layout
+            ditto -x -k wb/packages/windows-built-$layout-${{ matrix.rid }}.zip wb/$layout
+            bash packaging/macos-package-trial.sh seal "wb/$layout/TableForge Mac Check/TableForge Mac Check.app" $layout ${{ matrix.rid }}
+          done
+          cat out/packaging/*/layout.txt
 
-      - name: Sealed package — as downloaded — extract, signature, Gatekeeper assessment
+      - name: Packaging — extract every zip four ways, verify each signature after extraction
+        timeout-minutes: 12
         run: |
-          set +e
-          D=out/sealed
-          ditto -x -k "out/sealed-package/TableForge-Mac-Check-${{ matrix.rid }}-sealed.zip" dl
-          APP="dl/TableForge Mac Check/TableForge Mac Check.app"
-          ls -l@ "$APP/Contents/MacOS/TableForgeMacCheck" > $D/permissions.txt 2>&1
-          lipo -archs "$APP/Contents/MacOS/TableForgeMacCheck" > $D/archs.txt 2>&1
-          python3 packaging/macpack.py verify --app "$APP" --rid ${{ matrix.rid }} > $D/verify.json
-          codesign -dv --verbose=4 "$APP" > $D/codesign-bundle.txt 2>&1
-          codesign --verify --deep --strict --verbose=2 "$APP" > $D/codesign-verify-bundle.txt 2>&1; echo "exit $?" >> $D/codesign-verify-bundle.txt
-          spctl --assess --type execute --verbose=4 "$APP" > $D/spctl-not-quarantined.txt 2>&1; echo "exit $?" >> $D/spctl-not-quarantined.txt
-          mkdir -p dlq; ditto "$APP" "dlq/TableForge Mac Check.app"
-          xattr -w com.apple.quarantine "0081;$(printf %x $(date +%s));Safari;" "dlq/TableForge Mac Check.app"
-          xattr -l "dlq/TableForge Mac Check.app" > $D/quarantine-attribute.txt 2>&1
-          spctl --assess --type execute --verbose=4 "dlq/TableForge Mac Check.app" > $D/spctl-quarantined.txt 2>&1; echo "exit $?" >> $D/spctl-quarantined.txt
-          syspolicy_check distribution "dlq/TableForge Mac Check.app" > $D/syspolicy-check.txt 2>&1; echo "exit $?" >> $D/syspolicy-check.txt
-          true
+          for layout in current-layout single-file; do
+            for zip in plain meta; do
+              bash packaging/macos-package-trial.sh roundtrip "out/sealed-package/TableForge-Mac-Check-${{ matrix.rid }}-$layout-$zip.zip" $layout-$zip
+            done
+          done
+          column -t -s "$(printf '\t')" out/packaging/summary.tsv || cat out/packaging/summary.tsv
 
       - name: Preview to pasteboard capture of the synthetic PDFs (needs Accessibility; may be unavailable)
         continue-on-error: true
@@ -184,42 +182,50 @@ jobs:
           sw_vers -productVersion > out/preview-captures/macos-version.txt
           true
 
-      - name: Sealed package — launch the extracted copy through LaunchServices and self-test
-        timeout-minutes: 8
+      - name: Startup after extraction — launch each candidate through LaunchServices and self-test (not quarantined)
+        timeout-minutes: 14
         run: |
           set +e
-          APP="$PWD/dl/TableForge Mac Check/TableForge Mac Check.app"
-          OUT="$PWD/out/sealed/selftest"
           # E2 input: this runner's own Preview captures when all 8 were captured, otherwise E2's Windows Chrome captures.
           FIX="$PWD/out/preview-captures"
           N=$(ls "$FIX" 2>/dev/null | grep -E '^c0[0-9][a-z0-9-]*\.txt$' | wc -l | tr -d ' ')
           if [ "$N" != "8" ]; then FIX="$PWD/tests/MacCheck.Tests/e2-fixtures/windows/chrome"; fi
-          echo "E2 input: ${FIX#$PWD/} ($N Preview captures on this runner)" > out/sealed/selftest-input.txt
-          open -n -W "$APP" --args --selftest "$OUT" --fixtures "$FIX" &
-          OPEN_PID=$!
-          for i in $(seq 1 360); do kill -0 $OPEN_PID 2>/dev/null || break; sleep 1; done
-          if kill -0 $OPEN_PID 2>/dev/null; then echo "self-test still running after 360 s" > out/sealed/selftest-timeout.txt; pkill -f TableForgeMacCheck; fi
-          wait $OPEN_PID; echo "open exit $?" > out/sealed/launch.txt
-          sleep 5
-          ps -axo pid,ppid,comm | grep -i -E "TableForgeMacCheck|WebContent|com.apple.WebKit" | grep -v grep > out/sealed/processes-after-exit.txt
-          ls -l "$OUT" >> out/sealed/launch.txt 2>&1
+          echo "E2 input: ${FIX#$PWD/} ($N Preview captures on this runner)" > out/selftest-input.txt
+          # Candidate B: current layout, zip with metadata. Candidate A: single-file, zip without metadata.
+          # Each as Archive Utility extracted it (a Finder double-click); ditto's extraction if Archive Utility did not run.
+          for name in current-layout-meta single-file-plain; do
+            D="out/launch/$name"; mkdir -p "$D"
+            P="x/$name/archive-utility.path"; [ -f "$P" ] || P="x/$name/ditto.path"
+            if [ ! -f "$P" ]; then echo "UNABLE TO TEST: no extracted copy with a valid path" > $D/launch.txt; continue; fi
+            APP="$(cat "$P")"
+            echo "launched copy: ${APP#$PWD/} (quarantine: $(xattr -p com.apple.quarantine "$APP" 2>/dev/null || echo none))" > $D/launch.txt
+            open -n -W "$APP" --args --selftest "$PWD/$D/selftest" --fixtures "$FIX" &
+            OPEN_PID=$!
+            for i in $(seq 1 360); do kill -0 $OPEN_PID 2>/dev/null || break; sleep 1; done
+            if kill -0 $OPEN_PID 2>/dev/null; then echo "self-test still running after 360 s (stopped; not a result)" >> $D/launch.txt; pkill -f "$APP/Contents/MacOS/TableForgeMacCheck"; fi
+            wait $OPEN_PID; echo "open exit $?" >> $D/launch.txt
+            sleep 5
+            ps -axo pid,ppid,comm | grep -i -E "TableForgeMacCheck|WebContent|com.apple.WebKit" | grep -v grep > $D/processes-after-exit.txt
+            ls -l "$D/selftest" >> $D/launch.txt 2>&1
+          done
           true
 
-      - name: Gatekeeper on first open of each quarantined package (observed only; nothing is bypassed)
+      - name: Gatekeeper — bounded assessment and one observed first open of each quarantined candidate (nothing bypassed)
         continue-on-error: true
-        timeout-minutes: 3
+        timeout-minutes: 10
         run: |
           set +e
-          D=out/gatekeeper-open; mkdir -p $D
-          for v in windows-built sealed; do
-            if [ $v = sealed ]; then Q="dlq/TableForge Mac Check.app"; else Q="wbq/TableForge Mac Check.app"; fi
-            START="$(date '+%Y-%m-%d %H:%M:%S')"
-            open "$Q" > $D/$v-open.txt 2>&1; echo "open exit $?" >> $D/$v-open.txt
-            sleep 12
-            if pgrep -f "TableForgeMacCheck" > /dev/null; then echo "app process: RUNNING (not blocked)" >> $D/$v-open.txt; else echo "app process: not running (blocked)" >> $D/$v-open.txt; fi
-            log show --start "$START" --style compact --predicate 'process == "syspolicyd" OR process == "CoreServicesUIAgent"' 2>/dev/null \
-              | grep -i -E "gatekeeper|notar|damaged|malware|assess|prompt|reject|adhoc|ad-hoc|block|allow|unsigned|invalid" | head -60 > $D/$v-syspolicy-log.txt
-            pkill -f TableForgeMacCheck; sleep 2
+          for name in current-layout-meta single-file-plain; do
+            P="x/$name/archive-utility-quarantined.path"
+            if [ -f "$P" ]; then APP="$(cat "$P")"
+            elif [ -f "x/$name/ditto.path" ]; then
+              # Archive Utility did not run: simulate the download on a copy of ditto's extraction instead.
+              mkdir -p "x/$name/q"; APP="$PWD/x/$name/q/TableForge Mac Check.app"
+              ditto "$(cat "x/$name/ditto.path")" "$APP"
+              xattr -w com.apple.quarantine "0081;$(printf %x $(date +%s));Safari;" "$APP"
+            else mkdir -p out/gatekeeper/$name; echo "UNABLE TO TEST: no extracted copy" > out/gatekeeper/$name/classification.txt; continue; fi
+            bash packaging/macos-package-trial.sh gatekeeper "$APP" $name
+            cat out/gatekeeper/$name/classification.txt out/gatekeeper/$name/first-open.txt
           done
           true
 
@@ -235,6 +241,8 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         if: always()
         with:
-          name: sealed-package-${{ matrix.rid }}
-          path: out/sealed-package/
+          name: sealed-candidates-${{ matrix.rid }}
+          path: |
+            out/sealed-package/*-current-layout-meta.zip
+            out/sealed-package/*-single-file-plain.zip
           retention-days: 1
